@@ -1,0 +1,1 @@
+/opt/software/software/GCCcore/9.3.0/bin/cc -std=c11 -Wall -Wextra -Wshadow -Werror  -rdynamic CMakeFiles/analysis_exec.dir/src/analysis.c.o  -o analysis_exec  -Wl,-rpath,/homes/jrwills/p2/hw2/build libdyn_array_lib.so 
