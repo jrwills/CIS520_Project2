@@ -65,8 +65,47 @@ bool round_robin(dyn_array_t *ready_queue, ScheduleResult_t *result, size_t quan
 
 dyn_array_t *load_process_control_blocks(const char *input_file) 
 {
-    UNUSED(input_file);
-    return NULL;
+    //UNUSED(input_file);
+    //return NULL;
+    // Ensure parameters are valid
+    if (input_file == NULL){
+        return NULL;
+    }
+    
+    // Try to open the file to read, return null if unsuccessful
+    int file = open(input_file, O_RDONLY);
+    if (file <= 0){
+        close(file);
+        return NULL;
+    }
+    
+    // Read the total number of processes in the file
+    // return null if read is unsuccessful
+    uint32_t length;
+    int readFile = read(file, &length, sizeof(uint32_t));
+    if (readFile <= 0){
+        return NULL;
+    }
+    
+    // Allocate memory to a process control block struct
+    ProcessControlBlock_t* pcb = malloc(sizeof(ProcessControlBlock_t)*length);
+    
+    // From file, read in burst time, priority, and arrival time into pcb struct
+    for(uint32_t i = 0; i < length; i++){
+        readFile = read(file, &pcb[i].remaining_burst_time, sizeof(uint32_t));
+        readFile = read(file, &pcb[i].priority, sizeof(uint32_t));
+        readFile = read(file, &pcb[i].arrival_time);
+    }
+    
+    // Create dynamic array from pcb
+    dyn_array_t* dynArr = dyn_array_import((void*)pcb, sizeof(length), sizeof(ProcessControlBlock_t), NULL);
+    
+    // Cleanup
+    close(file);
+    free(pcb);
+    
+    // Return dynamic array
+    return dynArr;
 }
 
 bool shortest_remaining_time_first(dyn_array_t *ready_queue, ScheduleResult_t *result) 
