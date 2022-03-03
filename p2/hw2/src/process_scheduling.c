@@ -94,7 +94,7 @@ dyn_array_t *load_process_control_blocks(const char *input_file)
     for(uint32_t i = 0; i < length; i++){
         readFile = read(file, &pcb[i].remaining_burst_time, sizeof(uint32_t));
         readFile = read(file, &pcb[i].priority, sizeof(uint32_t));
-        readFile = read(file, &pcb[i].arrival_time);
+        readFile = read(file, &pcb[i].arrival_time, sizeof(unint32_t));
     }
     
     // Create dynamic array from pcb
