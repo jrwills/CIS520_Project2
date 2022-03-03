@@ -46,6 +46,22 @@ TEST(first_come_first_serve, NullParams)
     }
 }
 
+// Ensure load_process_control_blocks returns null for null parameters
+TEST (load_process_control_blocks, nullParameters) {
+    dyn_array_t* dynArr = load_process_control_blocks(NULL);
+    ASSERT_EQ(dynArr,(dyn_array_t*) NULL);
+    
+    score += 10;
+}
+
+// Ensure load_process_control_blocks returns null for incorrect file name
+TEST (load_process_control_blocks, couldNotOpenFile){
+    dyn_array_t* dynArr = load_process_control_blocks("Filename.file");
+    ASSERT_EQ(dynArr,(dyn_array_t*) NULL);
+    
+    score += 10;
+}
+
 
 int main(int argc, char **argv) 
 {
