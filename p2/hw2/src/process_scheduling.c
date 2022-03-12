@@ -19,7 +19,52 @@ void virtual_cpu(ProcessControlBlock_t *process_control_block)
     --process_control_block->remaining_burst_time;
 }
 
-//https://www.edureka.co/blog/first-come-first-serve-scheduling/#:~:text=First%20Come%20First%20Serve%20is,are%20requested%20by%20the%20processor.
+bool sort_arrival_times(dyn_array_t *ready_queue){
+    if(ready_queue == NULL){
+        return false;
+    }
+    int numProcesses = dyn_array_size(ready_queue);
+    ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
+    
+    // at the end of the nested for loop, the ready queue should be sorted by arrival time
+    for(int i = 0; i < numProcesses; i++){
+        // allocate memory for temporary pcb that will be modified on each iteration of the for loop
+        //ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
+        int minArrivalTime = -1;
+        int minArrivalIndex = -1;
+    
+        // loop to find the minimum arrival time of any process and the corresponding index
+        // in the ready queue array of this process
+        // iterate up to numProcesses-i because the pcb with the lowest arrival
+        // time will be pushed to the back of the array
+        for(int j = 0; j < numProcesses-i; j++){
+            //tempPcb = (ProcessControlBlock_t*)dyn_array_export(ready_queue);
+            // get pcb at index j
+            tempPcb = dyn_array_at(ready_queue, j);
+            int arrivalTime = tempPcb->arrival;
+        
+            // initialize arrival time and index if this is the first loop through the array
+            if((minArrivalTime == -1) || (minArrivalIndex == -1)){
+                minArrivalTime = arrivalTime;
+                minArrivalIndex = j;
+            }
+            else if(arrivalTime < minArrivalTime){
+                minArrivalTime = arrivalTime;
+                minArrivalIndex = j;
+                }
+                
+            }// inner for loop
+            
+            // extract the min arrival time element and push to the back of the queue
+            void  *const voidPcbPtr = malloc(sizeof(ProcessControlBlock_t));
+            dyn_array_extract(ready_queue, minArrivalIndex , voidPcbPtr);
+            dyn_array_push_back(ready_queue, voidPcbPtr);
+            
+    }// outer for loop
+    return true;
+}
+
+//https://www.edureka.co/blog/first-come-first-serve-scheduling/#:~:text=First+Come+First+Serve+is,are+requested+by+the+processor.
 bool first_come_first_serve(dyn_array_t *ready_queue, ScheduleResult_t *result) 
 {
     //UNUSED(ready_queue);
@@ -35,6 +80,73 @@ bool first_come_first_serve(dyn_array_t *ready_queue, ScheduleResult_t *result)
     {
         return false;
     }
+
+    
+    int numProcesses = dyn_array_size(ready_queue);
+    ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
+    
+    // put the first pcb to the end of the array so the array is out of order
+    void  *const voidPcbPtr = malloc(sizeof(ProcessControlBlock_t));
+    dyn_array_extract_front(ready_queue, voidPcbPtr);
+    dyn_array_push_back(ready_queue, voidPcbPtr);
+    
+    // sort the ready queue based on arrival times, from lowest to highest
+    if(!sort_arrival_times(ready_queue)){
+        return false;
+    }
+    
+    // populate array of burst times
+    int bt[numProcesses];
+    for(int i = 0; i < numProcesses; i++){
+        tempPcb = dyn_array_at(ready_queue, i);
+        bt[i] = tempPcb->remaining_burst_time;
+    }
+    
+    // create an array to store the waiting time of each process
+    int wt[numProcesses];
+    wt[0] = 0;
+    
+    // the waiting time of each process is the sum of the previous process's burst times
+    for(int i = 1; i < numProcesses; i++){
+        
+        wt[i] = 0;
+        for(int j = 0; j<i; j++){
+            wt[i] += bt[j];
+        }
+    }
+    
+    // array to hold the turn around time for each process
+    int tat[numProcesses];
+    // average waiting time
+    float avwt = 0;
+    // average turn around time
+    float avtat = 0;
+    // total run time
+    unsigned long trt = 0;
+    
+    // calculate average waiting time and average turnaround time
+    for(int i = 0; i< numProcesses; i++){
+        // turnaround time equals sum of waiting and burst times
+        tat[i] = wt[i] + bt[i];
+        avwt += wt[i];
+        //printf("Waiting Time[%d]: %d\n", i, wt[i]);
+        avtat+=tat[i];
+        // total run time is the sum of the burst times
+        trt += bt[i];
+    }
+    avwt /= numProcesses;
+    avtat /= numProcesses;
+    printf("Average Waiting Time: %f\n",avwt);
+    printf("Average Turnaround Time: %f\n",avtat);
+    printf("Total Run Time: %ld\n",trt);
+    
+    result->average_waiting_time = avwt;
+    result->average_turnaround_time = avtat;
+    result->total_run_time = trt;
+    
+
+    //dyn_array_extract(dyn_array_t *const dyn_array, const size_t index, void *const object)
+    
 
     //n = dyn_array_size(ready_queue); //0 on error, need to cast as (size_T)???
 
@@ -66,46 +178,45 @@ bool round_robin(dyn_array_t *ready_queue, ScheduleResult_t *result, size_t quan
 dyn_array_t *load_process_control_blocks(const char *input_file) 
 {
     //UNUSED(input_file);
-    //return NULL;
-    // Ensure parameters are valid
-    if (input_file == NULL){
-        return NULL;
+    if((input_file == NULL) || (*input_file == '\n') || (*input_file == '\0')){
+        return false;
+    }
+    int fd;
+    // open input file for read-only access
+    if((fd = open(input_file, O_RDONLY)) == -1){
+        printf("fd: %d\n", fd);
+        return false;
     }
     
-    // Try to open the file to read, return null if unsuccessful
-    int file = open(input_file, O_RDONLY);
-    if (file <= 0){
-        close(file);
-        return NULL;
+    uint32_t n = 0;
+    // read first 4 bytes of pcb file into int storing number of pcbs
+    if (read(fd, &n, 4) == -1){
+        return false;
+    }
+    //printf("n: %d\n", n);
+    
+    // create an array of process control blocks to be used as the ready queue
+    ProcessControlBlock_t * pcb_arr = malloc(n*sizeof(ProcessControlBlock_t));
+
+    // loop through each pcb in the binary file and store the burst time, 
+    // priority, and arrival time parameters in the pcb array
+    for(uint32_t i = 0; i < n; i++){
+        read(fd, &pcb_arr[i].remaining_burst_time, 4);
+        read(fd, &pcb_arr[i].priority, 4);
+        read(fd, &pcb_arr[i].arrival, 4);
+    
+        //printf("Burst time %d: %d\n", i, pcb_arr[i].remaining_burst_time);
+        //printf("Priority %d: %d\n", i, pcb_arr[i].priority);
+        //printf("Arrival time %d: %d\n\n", i, pcb_arr[i].arrival);
     }
     
-    // Read the total number of processes in the file
-    // return null if read is unsuccessful
-    uint32_t length;
-    int readFile = read(file, &length, sizeof(uint32_t));
-    if (readFile <= 0){
-        return NULL;
-    }
+    // create a dynamic array to store the pcb array
+    struct dyn_array *dyn_arr = dyn_array_create(n, sizeof(ProcessControlBlock_t), NULL);
     
-    // Allocate memory to a process control block struct
-    ProcessControlBlock_t* pcb = malloc(sizeof(ProcessControlBlock_t)*length);
+    // import the pcb array to a new dynamic array
+    dyn_arr = dyn_array_import(pcb_arr, n, sizeof(ProcessControlBlock_t), NULL);
     
-    // From file, read in burst time, priority, and arrival time into pcb struct
-    for(uint32_t i = 0; i < length; i++){
-        readFile = read(file, &pcb[i].remaining_burst_time, sizeof(uint32_t));
-        readFile = read(file, &pcb[i].priority, sizeof(uint32_t));
-        readFile = read(file, &pcb[i].arrival, sizeof(unint32_t));
-    }
-    
-    // Create dynamic array from pcb
-    dyn_array_t* dynArr = dyn_array_import((void*)pcb, sizeof(length), sizeof(ProcessControlBlock_t), NULL);
-    
-    // Cleanup
-    close(file);
-    free(pcb);
-    
-    // Return dynamic array
-    return dynArr;
+    return dyn_arr;
 }
 
 bool shortest_remaining_time_first(dyn_array_t *ready_queue, ScheduleResult_t *result) 
