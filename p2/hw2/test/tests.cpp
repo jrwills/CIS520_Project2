@@ -34,6 +34,10 @@ class GradeEnvironment : public testing::Environment
         }
 };
 
+/*******************************************************************************
+    FCFS TESTING BLOCK
+*******************************************************************************/
+
 //First written TEST (11:40ish on video)
 TEST(first_come_first_serve, NullParams)
 {
@@ -46,6 +50,7 @@ TEST(first_come_first_serve, NullParams)
     }
 }
 
+// Ensures FCFS works with good parameters
 TEST(first_come_first_serve, GoodParams)
 {
     dyn_array_t * dyn_arr = load_process_control_blocks("pcb.bin");
@@ -84,7 +89,16 @@ TEST(first_come_first_serve, GoodParams)
     }
 }
 
-TEST(shortest_job_frst, BadParams){
+/*******************************************************************************
+    END OF FCFS TESTING BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    SJF TESTING BLOCK
+*******************************************************************************/
+
+// Ensure SJF returns false with null params
+TEST(shortest_job_first, BadParams){
     bool ret = shortest_job_first(NULL,NULL);
     bool expected = false;
     EXPECT_EQ(ret,expected);
@@ -94,6 +108,7 @@ TEST(shortest_job_frst, BadParams){
     }
 }
 
+// Ensure SJF works with good params
 TEST(shortest_job_first, GoodParams)
 {
     //dyn_array_t * dyn_arr = load_process_control_blocks("pcb.bin");
@@ -198,6 +213,15 @@ TEST(shortest_job_first, GoodParams)
     }
 }
 
+/*******************************************************************************
+    END OF SJF TESTING BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    ROUND ROBIN TESTING BLOCK
+*******************************************************************************/
+
+// Ensure round robin returns false with bad params
 TEST (round_robin, BadParams) {
     bool result = round_robin(NULL, NULL, -1);
     bool expected = false;
@@ -207,6 +231,7 @@ TEST (round_robin, BadParams) {
     }
 }
 
+// Ensure round robin works with good params
 TEST (round_robin, GoodParams) {
     dyn_array_t * dyn_arr = load_process_control_blocks("pcb.bin");
     ScheduleResult_t *stats = (ScheduleResult_t*)malloc(sizeof(ScheduleResult_t));
@@ -244,6 +269,14 @@ TEST (round_robin, GoodParams) {
     }
 }
 
+/*******************************************************************************
+    END OF ROUND ROBIN TESTING BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    LOAD PCB TESTING BLOCK
+*******************************************************************************/
+
 // Ensure load_process_control_blocks returns null for null parameters
 TEST (load_process_control_blocks, nullParameters) {
     dyn_array_t* dynArr = load_process_control_blocks(NULL);
@@ -252,7 +285,7 @@ TEST (load_process_control_blocks, nullParameters) {
     score += 10;
 }
 
-
+// Ensure load pcb works with good params
 TEST(load_proccess_control_block, GoodParams)
 {
     dyn_array_t * dyn_arr = load_process_control_blocks("pcb.bin");
@@ -312,6 +345,58 @@ TEST(load_proccess_control_block, GoodParams)
 
     score = score + 10;
 }
+
+/*******************************************************************************
+    END OF LOAD PCB TESTING BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    SRTF TESTING BLOCK
+*******************************************************************************/
+
+// Ensure srtf returns false with null params
+TEST(shortest_remaining_time_first, NullParams)
+{
+    bool ret = shortest_remaining_time_first(NULL,NULL);
+    bool expected = false;
+    EXPECT_EQ(ret, expected);
+    if(ret == expected)
+    {
+        score += 10;
+    }
+}
+
+// Ensure srtf returns false with null ready queue
+TEST(shortest_remaining_time_first, NullReadyQ)
+{
+    dyn_array_t* d = NULL;
+    ScheduleResult_t *s = new ScheduleResult_t;
+    bool ret = shortest_remaining_time_first(d,s);
+    bool expected = false;
+    EXPECT_EQ(ret, expected);
+    if(ret == expected)
+    {
+        score += 10;
+    }
+}
+
+// Ensure srtf returns false with null result
+TEST(shortest_remaining_time_first, NullResult)
+{
+    dyn_array_t* d = dyn_array_create(0,sizeof(ProcessControlBlock_t),NULL);
+    ScheduleResult_t *s = NULL;
+    bool ret = shortest_remaining_time_first(d,s);
+    bool expected = false;
+    EXPECT_EQ(ret, expected);
+    if(ret == expected)
+    {
+        score += 10;
+    }
+}
+
+/*******************************************************************************
+    END OF SRTF TESTING BLOCK
+*******************************************************************************/
 
 
 int main(int argc, char **argv) 
