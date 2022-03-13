@@ -19,6 +19,13 @@ void virtual_cpu(ProcessControlBlock_t *process_control_block)
     --process_control_block->remaining_burst_time;
 }
 
+/*******************************************************************************
+    HELPER FUNCTION BLOCK
+*******************************************************************************/
+
+// HELPER function to help sort arrival times
+// \param ready_queue the queue to be sorted
+// \return a boolean indicating whether sort was successful
 bool sort_arrival_times(dyn_array_t *ready_queue){
     if(ready_queue == NULL){
         return false;
@@ -64,6 +71,9 @@ bool sort_arrival_times(dyn_array_t *ready_queue){
     return true;
 }
 
+// HELPER function to help sort burst times
+// \param ready_queue the queue to be sorted
+// \return a boolean indicating whether sort was successful
 bool sort_burst_times(dyn_array_t *ready_queue){
     if(ready_queue == NULL){
         return false;
@@ -109,24 +119,27 @@ bool sort_burst_times(dyn_array_t *ready_queue){
     return true;
 }
 
-//https://www.edureka.co/blog/first-come-first-serve-scheduling/#:~:text=First+Come+First+Serve+is,are+requested+by+the+processor.
+/*******************************************************************************
+    END HELPER FUNCTION BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    FCFS BLOCK
+*******************************************************************************/
+
+// Source: https://www.edureka.co/blog/first-come-first-serve-scheduling/#:~:text=First+Come+First+Serve+is,are+requested+by+the+processor.
+// Runs the First Come First Served Process Scheduling algorithm over the incoming ready_queue
+// \param ready queue a dyn_array of type ProcessControlBlock_t that contain be up to N elements
+// \param result used for first come first served stat tracking \ref ScheduleResult_t
+// \return true if function ran successful else false for an error
 bool first_come_first_serve(dyn_array_t *ready_queue, ScheduleResult_t *result) 
 {
-    //UNUSED(ready_queue);
-    //UNUSED(result);
-
-    //size_t n = 0; //number of blocks?
-    /*size_t bt = 0; //burst
-    size_t wt = 0; //wait
-    size_t at = 0; //arrival
-    size_t tt = 0; //turnaround*/
-    
+    //Error Handling    
     if(ready_queue == NULL || result == NULL)
     {
         return false;
     }
 
-    
     int numProcesses = dyn_array_size(ready_queue);
     ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
     
@@ -185,24 +198,30 @@ bool first_come_first_serve(dyn_array_t *ready_queue, ScheduleResult_t *result)
     printf("Average Turnaround Time: %f\n",avtat);
     printf("Total Run Time: %ld\n",trt);
     
+    //VALUES to be a part of result set, what we see in analysis.exec
     result->average_waiting_time = avwt;
     result->average_turnaround_time = avtat;
     result->total_run_time = trt;
-    
-
-    //dyn_array_extract(dyn_array_t *const dyn_array, const size_t index, void *const object)
-    
-
-    //n = dyn_array_size(ready_queue); //0 on error, need to cast as (size_T)???
 
     return true;
 }
 
+/*******************************************************************************
+    END FCFS BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    SJF BLOCK
+*******************************************************************************/
+
+//Orig (John), then Will | SJF
+// Runs the Shortest Job First Scheduling algorithm over the incoming ready_queue
+// \param ready queue a dyn_array of type ProcessControlBlock_t that contain be up to N elements
+// \param result used for shortest job first stat tracking \ref ScheduleResult_t
+// \return true if function ran successful else false for an error
 bool shortest_job_first(dyn_array_t *ready_queue, ScheduleResult_t *result) 
 {
-    //UNUSED(ready_queue);
-    //UNUSED(result);
-    
+    //Error handling   
     if(ready_queue == NULL || result == NULL)
     {
         return false;
@@ -223,7 +242,7 @@ bool shortest_job_first(dyn_array_t *ready_queue, ScheduleResult_t *result)
         return false;
     }
     
- // populate array of burst times
+    // populate array of burst times
     int bt[numProcesses];
     for(int i = 0; i < numProcesses; i++){
         tempPcb = dyn_array_at(ready_queue, i);
@@ -275,6 +294,11 @@ bool shortest_job_first(dyn_array_t *ready_queue, ScheduleResult_t *result)
     return true;   
 }
 
+/*******************************************************************************
+    END SJF BLOCK
+*******************************************************************************/
+
+//Leave me alone??
 bool priority(dyn_array_t *ready_queue, ScheduleResult_t *result) 
 {
     UNUSED(ready_queue);
@@ -282,8 +306,16 @@ bool priority(dyn_array_t *ready_queue, ScheduleResult_t *result)
     return false;   
 }
 
+/*******************************************************************************
+    ROUND ROBIN BLOCK
+*******************************************************************************/
+
 // https://www.geeksforgeeks.org/program-round-robin-scheduling-set-1/
-// TODO: complete algorithm that actually runs the processes, calculate necessary values
+// Runs the Round Robin Process Scheduling algorithm over the incoming ready_queue
+// \param ready queue a dyn_array of type ProcessControlBlock_t that contain be up to N elements
+// \param result used for round robin stat tracking \ref ScheduleResult_t
+// \param the quantum
+// \return true if function ran successful else false for an error
 bool round_robin(dyn_array_t *ready_queue, ScheduleResult_t *result, size_t quantum) 
 {
     if(ready_queue == NULL || result == NULL || quantum <= 0){                  // Ensure params are good
@@ -366,6 +398,7 @@ bool round_robin(dyn_array_t *ready_queue, ScheduleResult_t *result, size_t quan
     printf("Average Turnaround Time: %f\n",avg_turn);
     printf("Total Run Time: %ld\n",total_rt);
     
+    //VALUES to be a part of the result set
     result->average_waiting_time = avg_wait;
     result->average_turnaround_time = avg_turn;
     result->total_run_time = total_rt;
@@ -374,6 +407,18 @@ bool round_robin(dyn_array_t *ready_queue, ScheduleResult_t *result, size_t quan
     
 }
 
+/*******************************************************************************
+    END ROUND ROBIN BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    LOAD PCB BLOCK
+*******************************************************************************/
+
+// Reads the PCB burst time values from the binary file into ProcessControlBlock_t remaining_burst_time field
+// for N number of PCB burst time stored in the file.
+// \param input_file the file containing the PCB burst times
+// \return a populated dyn_array of ProcessControlBlocks if function ran successful else NULL for an error
 dyn_array_t *load_process_control_blocks(const char *input_file) 
 {
     //UNUSED(input_file);
@@ -418,9 +463,100 @@ dyn_array_t *load_process_control_blocks(const char *input_file)
     return dyn_arr;
 }
 
+/*******************************************************************************
+    END LOAD PCB BLOCK
+*******************************************************************************/
+
+/*******************************************************************************
+    SRTF BLOCK
+*******************************************************************************/
+
+// Source: https://www.studytonight.com/operating-system/shortest-remaining-time-first-scheduling-algorithm
+// Runs the Shortest Remaining Time First Process Scheduling algorithm over the incoming ready_queue
+// \param ready queue a dyn_array of type ProcessControlBlock_t that contain be up to N elements
+// \param result used for shortest job first stat tracking \ref ScheduleResult_t
+// \return true if function ran successful else false for an error
 bool shortest_remaining_time_first(dyn_array_t *ready_queue, ScheduleResult_t *result) 
 {
-    UNUSED(ready_queue);
-    UNUSED(result);
-    return false;
+    //Error handling   
+    if(ready_queue == NULL || result == NULL)
+    {
+        return false;
+    }
+    
+    int numProcesses = dyn_array_size(ready_queue);
+    ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
+    
+    // sort based on arrival
+    if(!sort_arrival_times(ready_queue)){
+        return false;
+    }
+    //Then based on time remaining below...
+
+    // populate array of arrival times
+    int avt[numProcesses];
+    for(int i = 0; i < numProcesses; i++){
+        tempPcb = dyn_array_at(ready_queue, i);
+        avt[i] = tempPcb->arrival;
+        //printf("Process #%d arrival time: %d\n", i, tempPcb->arrival);
+    }
+    
+    // create an array to store the waiting time of each process
+    int wt[numProcesses];
+    wt[0] = 0;
+    
+    // the waiting time of each process is the sum of the previous process's arrival times
+    for(int i = 1; i < numProcesses; i++)
+    {
+        wt[i] = 0;
+        for(int j = 0; j<i; j++)
+        {
+            wt[i] += avt[j];
+        }
+    }
+    
+    // array to hold the turn around time for each process
+    int tat[numProcesses];
+    // average waiting time
+    float avwt = 0;
+    // average turn around time
+    float avtat = 0;
+    // total run time
+    unsigned long trt = 0;
+    //time remaining
+    //float tr = 0;
+
+    // calculate average waiting time and average turnaround time
+    for(int i = 0; i< numProcesses; i++){
+        // turnaround time equals sum of waiting and arrival times
+        tat[i] = wt[i] + avt[i];
+        avwt += wt[i];
+        avtat+=tat[i];
+        // total run time is the sum of the arrival times
+        trt += avt[i];
+    }
+    avwt /= numProcesses;
+    avtat /= numProcesses;
+    
+    //Need to check on the remaining bt, if done then need to add to the tat
+    if(tempPcb->remaining_burst_time == 0)
+    {
+        if(wt[0] == 0)
+            avtat += trt - (tempPcb->priority);
+    }
+    else
+    {
+        dyn_array_push_back(ready_queue, &tempPcb); //Unsure if this is correct, may need to try a different way
+    }
+
+    //VALUES added to result set
+    result->average_waiting_time = avwt;
+    result->average_turnaround_time = avtat;
+    result->total_run_time = trt;
+
+    return true;   
 }
+
+/*******************************************************************************
+    END SRTF BLOCK
+*******************************************************************************/
