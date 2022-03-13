@@ -356,12 +356,13 @@ bool round_robin(dyn_array_t *ready_queue, ScheduleResult_t *result, size_t quan
         for (int i = 0; i < numProcesses; i++){                                 // Loop through each PCB in ready_queue
             tempPcb = dyn_array_at(ready_queue, i);
             if (arrival_time[i] <= trt){                                        // If the process has actually arrived
-                if (tempPcb->remaining_burst_time > 0) {                        // If the process has time left
+                if ((int32_t)tempPcb->remaining_burst_time > 0) {               // If the process has time left
                     for (size_t j = 0; j < quantum; j++){                       // Run the process for the amount of time specified by the quantum
                         virtual_cpu(tempPcb);
                         trt++;                                                  // Increment clock
-                        if (tempPcb->remaining_burst_time == 0){                // If the process is finished
+                        if ((int32_t)tempPcb->remaining_burst_time <= 0){       // If the process is finished
                             turnaround_time[i] = trt - arrival_time[i];         // Calculate turnaround time
+                            break;
                         }
                     }
                 }
@@ -374,7 +375,7 @@ bool round_robin(dyn_array_t *ready_queue, ScheduleResult_t *result, size_t quan
         done = true;
         for (int i = 0; i < numProcesses; i++){                                 // Check if there are any processes left to be run
             tempPcb = dyn_array_at(ready_queue, i);
-            if (tempPcb->remaining_burst_time > 0){
+            if ((int32_t)tempPcb->remaining_burst_time > 0){
                 done = false;
                 break;
             }
