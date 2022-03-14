@@ -513,6 +513,8 @@ bool shortest_remaining_time_first(dyn_array_t *ready_queue, ScheduleResult_t *r
         arrival_time[i] = tempPcb->arrival;
     }
     
+    while (trt < arrival_time[0]) { trt++; }                                    // Increment timer until first process is ready
+    
     while (completed < numProcesses){                                           // while there are processes left to be run
         for (int i = 0; i < numProcesses; i++){                                 // iterate through them
             tempPcb = dyn_array_at(ready_queue, i);
