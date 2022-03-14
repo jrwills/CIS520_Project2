@@ -479,83 +479,94 @@ dyn_array_t *load_process_control_blocks(const char *input_file)
 // \return true if function ran successful else false for an error
 bool shortest_remaining_time_first(dyn_array_t *ready_queue, ScheduleResult_t *result) 
 {
-    //Error handling   
-    if(ready_queue == NULL || result == NULL)
-    {
+    if(ready_queue == NULL || result == NULL){                  // Ensure params are good
         return false;
     }
     
-    int numProcesses = dyn_array_size(ready_queue);
-    ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
+    float avg_wait = 0;                                                         // Average wait
+    float avg_turn = 0;                                                         // Average turnaround time
+    unsigned long total_rt = 0;                                                 // Total run time
     
-    // sort based on arrival
-    if(!sort_arrival_times(ready_queue)){
-        return false;
-    }
-    //Then based on time remaining below...
+    int numProcesses = dyn_array_size(ready_queue);                             // Get number of processes
+    ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));     // Create tempPCB to use in for loop later
+    ProcessControlBlock_t *tempPcb2 = malloc(sizeof(ProcessControlBlock_t));    // Create tempPCB2 to use in for loop later
+    
+    int arrival_time[numProcesses];                                             // Array to hold arrival times
+    int burst_time[numProcesses];                                               // Array to hold burst times
+    int wait_time[numProcesses];                                                // Array to hold wait times
+    int turnaround_time[numProcesses];                                          // Array to hold turnaround times
+    int trt = 0;                                                                // Temp total runtime variable
+    bool isFastest = false;                                                     // Flag to check if current process should be run
+    int completed = 0;                                                          // Keeps track of No. of processes complete
 
-    // populate array of arrival times
-    int avt[numProcesses];
-    for(int i = 0; i < numProcesses; i++){
-        tempPcb = dyn_array_at(ready_queue, i);
-        avt[i] = tempPcb->arrival;
-        //printf("Process #%d arrival time: %d\n", i, tempPcb->arrival);
+    void  *const voidPcbPtr = malloc(sizeof(ProcessControlBlock_t));            // put the first pcb to the end of the array so the array is out of order
+    dyn_array_extract_front(ready_queue, voidPcbPtr);
+    dyn_array_push_back(ready_queue, voidPcbPtr);
+    
+    if(!sort_arrival_times(ready_queue)){                                       // sort the ready queue based on arrival times, from lowest to highest
+        return false;
     }
     
-    // create an array to store the waiting time of each process
-    int wt[numProcesses];
-    wt[0] = 0;
+    for(int i = 0; i < numProcesses; i++){                                      // Populate burst and arrival time arrays
+        tempPcb = dyn_array_at(ready_queue, i);
+        burst_time[i] = tempPcb->remaining_burst_time;
+        arrival_time[i] = tempPcb->arrival;
+    }
     
-    // the waiting time of each process is the sum of the previous process's arrival times
-    for(int i = 1; i < numProcesses; i++)
-    {
-        wt[i] = 0;
-        for(int j = 0; j<i; j++)
-        {
-            wt[i] += avt[j];
+    while (completed < numProcesses){                                           // while there are processes left to be run
+        for (int i = 0; i < numProcesses; i++){                                 // iterate through them
+            tempPcb = dyn_array_at(ready_queue, i);
+            if (arrival_time[i] <= trt){                                        // If the process has arrived
+                if ((int32_t)tempPcb->remaining_burst_time > 0){                // If the process has time left
+                    isFastest = true;
+                    for (int j = 0; j < numProcesses; j++){                     // iterate through all the other processes
+                        tempPcb2 = dyn_array_at(ready_queue, j);
+                        if ((int32_t)tempPcb2->remaining_burst_time > 0){
+                            if (arrival_time[j] <= trt &&                       // if the other process has arrived and has strictly less burst time remaining than the current processes
+                            (int32_t)tempPcb->remaining_burst_time > (int32_t)tempPcb2->remaining_burst_time) {
+                                isFastest = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (isFastest){
+                        virtual_cpu(tempPcb);                                   // run the processes
+                        trt++;                                                  // increment time
+                        if ((int32_t)tempPcb->remaining_burst_time <= 0){       // if the process is done
+                            turnaround_time[i] = trt - arrival_time[i];         // Calculate turnaround time
+                            completed++;
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
     
-    // array to hold the turn around time for each process
-    int tat[numProcesses];
-    // average waiting time
-    float avwt = 0;
-    // average turn around time
-    float avtat = 0;
-    // total run time
-    unsigned long trt = 0;
-    //time remaining
-    //float tr = 0;
-
-    // calculate average waiting time and average turnaround time
-    for(int i = 0; i< numProcesses; i++){
-        // turnaround time equals sum of waiting and arrival times
-        tat[i] = wt[i] + avt[i];
-        avwt += wt[i];
-        avtat+=tat[i];
-        // total run time is the sum of the arrival times
-        trt += avt[i];
-    }
-    avwt /= numProcesses;
-    avtat /= numProcesses;
+    total_rt = (unsigned long)trt;
     
-    //Need to check on the remaining bt, if done then need to add to the tat
-    if(tempPcb->remaining_burst_time == 0)
-    {
-        if(wt[0] == 0)
-            avtat += trt - (tempPcb->priority);
+    for (int i = 0; i < numProcesses; i++){                                     // Populate wait time arrays
+        wait_time[i] = turnaround_time[i] - burst_time[i];
     }
-    else
-    {
-        dyn_array_push_back(ready_queue, &tempPcb); //Unsure if this is correct, may need to try a different way
+    
+    for (int i = 0; i < numProcesses; i++){                                     // Sum the wait and turnaround times
+        avg_wait += wait_time[i];
+        avg_turn += turnaround_time[i];
     }
-
-    //VALUES added to result set
-    result->average_waiting_time = avwt;
-    result->average_turnaround_time = avtat;
-    result->total_run_time = trt;
-
-    return true;   
+    
+    avg_wait /= numProcesses;                                                   // Calculate and report the averages
+    avg_turn /= numProcesses;
+    printf("Average Waiting Time: %f\n",avg_wait);
+    printf("Average Turnaround Time: %f\n",avg_turn);
+    printf("Total Run Time: %ld\n",total_rt);
+    
+    //VALUES to be a part of the result set
+    result->average_waiting_time = avg_wait;
+    result->average_turnaround_time = avg_turn;
+    result->total_run_time = total_rt;
+    
+    return true;                                                                // Report successful srtf
+    
 }
 
 /*******************************************************************************
