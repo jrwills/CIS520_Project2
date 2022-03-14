@@ -144,20 +144,22 @@ bool first_come_first_serve(dyn_array_t *ready_queue, ScheduleResult_t *result)
     ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
     
     // put the first pcb to the end of the array so the array is out of order
-    void  *const voidPcbPtr = malloc(sizeof(ProcessControlBlock_t));
-    dyn_array_extract_front(ready_queue, voidPcbPtr);
-    dyn_array_push_back(ready_queue, voidPcbPtr);
+    //void  *const voidPcbPtr = malloc(sizeof(ProcessControlBlock_t));
+    //dyn_array_extract_front(ready_queue, voidPcbPtr);
+    //dyn_array_push_back(ready_queue, voidPcbPtr);
     
     // sort the ready queue based on arrival times, from lowest to highest
     if(!sort_arrival_times(ready_queue)){
         return false;
     }
     
-    // populate array of burst times
+    // populate array of burst times and arrival times
     int bt[numProcesses];
+    int at[numProcesses];
     for(int i = 0; i < numProcesses; i++){
         tempPcb = dyn_array_at(ready_queue, i);
         bt[i] = tempPcb->remaining_burst_time;
+        at[i] = tempPcb->arrival;
     }
     
     // create an array to store the waiting time of each process
@@ -166,11 +168,12 @@ bool first_come_first_serve(dyn_array_t *ready_queue, ScheduleResult_t *result)
     
     // the waiting time of each process is the sum of the previous process's burst times
     for(int i = 1; i < numProcesses; i++){
-        
         wt[i] = 0;
         for(int j = 0; j<i; j++){
+            //wt[i] = wt[i] + bt[j];
             wt[i] += bt[j];
         }
+        wt[i] -= at[i];
     }
     
     // array to hold the turn around time for each process
@@ -194,9 +197,9 @@ bool first_come_first_serve(dyn_array_t *ready_queue, ScheduleResult_t *result)
     }
     avwt /= numProcesses;
     avtat /= numProcesses;
-    printf("Average Waiting Time: %f\n",avwt);
-    printf("Average Turnaround Time: %f\n",avtat);
-    printf("Total Run Time: %ld\n",trt);
+    //printf("Average Waiting Time: %f\n",avwt);
+    //printf("Average Turnaround Time: %f\n",avtat);
+    //printf("Total Run Time: %ld\n",trt);
     
     //VALUES to be a part of result set, what we see in analysis.exec
     result->average_waiting_time = avwt;
@@ -228,64 +231,49 @@ bool shortest_job_first(dyn_array_t *ready_queue, ScheduleResult_t *result)
     }
     
     int numProcesses = dyn_array_size(ready_queue);
+    int origNumProcesses = numProcesses;
     ProcessControlBlock_t *tempPcb = malloc(sizeof(ProcessControlBlock_t));
     
-    // Should you sort by arrival time first, or only sort based on burst time?
-    
-    // sort the ready queue based on arrival times, from lowest to highest
-    //if(!sort_arrival_times(ready_queue)){
-    //    return false;
-    //}
-    
     // sort based on burst times, from lowest to highest
-    if(!sort_burst_times(ready_queue)){
+    if(!sort_arrival_times(ready_queue)){
         return false;
     }
-    
-    // populate array of burst times
-    int bt[numProcesses];
-    for(int i = 0; i < numProcesses; i++){
-        tempPcb = dyn_array_at(ready_queue, i);
-        bt[i] = tempPcb->remaining_burst_time;
-        printf("Process #%d burst time: %d\n", i, tempPcb->remaining_burst_time);
-    }
-    
-    // create an array to store the waiting time of each process
-    int wt[numProcesses];
-    wt[0] = 0;
-    
-    // the waiting time of each process is the sum of the previous process's burst times
-    for(int i = 1; i < numProcesses; i++){
-        wt[i] = 0;
-        for(int j = 0; j<i; j++){
-            wt[i] += bt[j];
+    unsigned long trt = 0;                                                      // total run time
+    float totalWaitTime = 0;
+    tempPcb = dyn_array_at(ready_queue, 0);
+    trt += tempPcb->arrival;                                                    // add the first arrival time to the total run time in case the first arrival time is not zero
+
+    for(int i = 0; i < origNumProcesses; i++){                                  // loop through each element of the ready queue and run its process
+        tempPcb = dyn_array_at(ready_queue, 0);
+        uint32_t minBurstTime = tempPcb->remaining_burst_time;
+        uint32_t minBurstIndex = 0;
+        for(int j = 0; j < numProcesses; j++){
+            tempPcb = dyn_array_at(ready_queue, j);
+            if(tempPcb->arrival <= (uint32_t)trt){                              // find the process with the lowest burst time from among the processes that have already arrived
+                if(tempPcb->remaining_burst_time < minBurstTime){
+                    minBurstTime = tempPcb->remaining_burst_time;
+                    minBurstIndex = j;
+                }
+            }
+        }// for loop to find min burst time process
+        
+        dyn_array_erase(ready_queue, minBurstIndex);                            // remove the process that just ran from the ready queue
+        numProcesses = numProcesses-1;
+        
+        for(unsigned int n = 0; n<minBurstTime; n++){                           // outer loop increments the total run time by the min burst time just found
+            for(int m = 0; m<numProcesses; m++){                                // The inner loop increments the total wait time. The waiting time for each process that has arrived
+                tempPcb = dyn_array_at(ready_queue, m);                         // but is not running is counted in the waiting time.
+                if(tempPcb->arrival <= trt){
+                    totalWaitTime++;
+                }
+            }
+            trt++;
         }
-    }
+        
+    }// outer for loop
     
-    // array to hold the turn around time for each process
-    int tat[numProcesses];
-    // average waiting time
-    float avwt = 0;
-    // average turn around time
-    float avtat = 0;
-    // total run time
-    unsigned long trt = 0;
-    
-    // calculate average waiting time and average turnaround time
-    for(int i = 0; i< numProcesses; i++){
-        // turnaround time equals sum of waiting and burst times
-        tat[i] = wt[i] + bt[i];
-        avwt += wt[i];
-        //printf("Waiting Time[%d]: %d\n", i, wt[i]);
-        avtat+=tat[i];
-        // total run time is the sum of the burst times
-        trt += bt[i];
-    }
-    avwt /= numProcesses;
-    avtat /= numProcesses;
-    printf("Average Waiting Time: %f\n",avwt);
-    printf("Average Turnaround Time: %f\n",avtat);
-    printf("Total Run Time: %ld\n",trt);
+    float avwt = totalWaitTime/origNumProcesses;
+    float avtat = (totalWaitTime + trt)/origNumProcesses;
     
     result->average_waiting_time = avwt;
     result->average_turnaround_time = avtat;
@@ -496,7 +484,7 @@ bool shortest_remaining_time_first(dyn_array_t *ready_queue, ScheduleResult_t *r
     int wait_time[numProcesses];                                                // Array to hold wait times
     int turnaround_time[numProcesses];                                          // Array to hold turnaround times
     int trt = 0;                                                                // Temp total runtime variable
-    bool isFastest = false;                                                     // Flag to check if current process should be run
+    bool isFastest = false;                                                     // Flag to check if all processes are done
     int completed = 0;                                                          // Keeps track of No. of processes complete
 
     void  *const voidPcbPtr = malloc(sizeof(ProcessControlBlock_t));            // put the first pcb to the end of the array so the array is out of order
